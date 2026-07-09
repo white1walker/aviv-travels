@@ -22,7 +22,7 @@ export default function App() {
   // MODAL & FORM STATES
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false); 
-  const [editingTripId, setEditingTripId] = useState(null); // Tracks if we are editing vs creating
+  const [editingTripId, setEditingTripId] = useState(null); 
 
   const [formTitle, setFormTitle] = useState('');
   const [formDate, setFormDate] = useState('');
@@ -37,7 +37,7 @@ export default function App() {
   const [selectedCities, setSelectedCities] = useState([]);
 
   const [formImages, setFormImages] = useState([]);
-  const [existingImages, setExistingImages] = useState([]); // Tracks photos already uploaded
+  const [existingImages, setExistingImages] = useState([]); 
   const [formGalleryLink, setFormGalleryLink] = useState('');
 
   useEffect(() => {
@@ -84,7 +84,6 @@ export default function App() {
     await supabase.auth.signOut();
   };
 
-  // NEW: Pre-load the modal with the trip's existing data
   const openEditModal = (trip) => {
     setEditingTripId(trip.id);
     setFormTitle(trip.title);
@@ -94,17 +93,15 @@ export default function App() {
     setFormGalleryLink(trip.gallery_link || '');
     setExistingImages(trip.image_urls || []);
     
-    // We recreate a dummy selectedCountry so the form knows not to block submission
     setSelectedCountry({
       properties: { short_code: trip.iso_code },
       bbox: trip.bbox 
     });
-    setCountryQuery(trip.iso_code); // Populates the input box
+    setCountryQuery(trip.iso_code); 
     
     setIsModalOpen(true);
   };
 
-  // NEW: Trash a trip completely
   const handleDeleteTrip = async (tripId) => {
     if (!window.confirm("Are you sure you want to permanently delete this log?")) return;
     
@@ -184,7 +181,6 @@ export default function App() {
     const incomingFiles = Array.from(e.target.files);
     const combinedFiles = [...formImages, ...incomingFiles];
     
-    // Total files = existing uploaded + newly staged
     if (combinedFiles.length + existingImages.length > 5) {
       alert("You can only attach a maximum of 5 highlight photos per trip.");
     } else {
@@ -200,7 +196,6 @@ export default function App() {
     setExistingImages(existingImages.filter((_, index) => index !== indexToRemove));
   };
 
-  // Reset form helper
   const resetForm = () => {
     setIsModalOpen(false);
     setEditingTripId(null);
@@ -240,7 +235,6 @@ export default function App() {
       }
     }
 
-    // Combine any old images you kept with any new ones you just uploaded
     const finalImageUrls = [...existingImages, ...uploadedImageUrls];
 
     const iso_code = selectedCountry.properties?.short_code?.toUpperCase() || 'UNK';
@@ -273,11 +267,9 @@ export default function App() {
 
     let error;
     if (editingTripId) {
-      // UPDATE EXISTING TRIP
       const res = await supabase.from('trips').update(newTripRow).eq('id', editingTripId);
       error = res.error;
     } else {
-      // CREATE NEW TRIP
       const res = await supabase.from('trips').insert([newTripRow]);
       error = res.error;
     }
@@ -313,11 +305,16 @@ export default function App() {
 
   const countryLayer = { id: 'country-fills', type: 'fill', 'source-layer': 'country_boundaries', paint: { 'fill-color': colorMatch, 'fill-opacity': opacityMatch } };
 
+  // CHANGED: The cities now strictly inherit the individual trip's dynamic color
   const cityFeatures = validTrips.flatMap(trip => {
     if (!trip.cities || !Array.isArray(trip.cities)) return [];
     return trip.cities.map(city => {
       if (typeof city.lng !== 'number' || typeof city.lat !== 'number') return null;
-      return { type: 'Feature', geometry: { type: 'Point', coordinates: [city.lng, city.lat] }, properties: { name: city.name, color: '#F5C2E7' } };
+      return { 
+        type: 'Feature', 
+        geometry: { type: 'Point', coordinates: [city.lng, city.lat] }, 
+        properties: { name: city.name, color: trip.color } 
+      };
     }).filter(Boolean);
   });
   
@@ -327,7 +324,6 @@ export default function App() {
   return (
     <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden', margin: 0, padding: 0 }}>
       
-      {/* THE SECURE DOOR */}
       <div 
         onClick={() => {
           if (!session) setIsLoginModalOpen(true);
@@ -339,7 +335,6 @@ export default function App() {
         title={session ? "Secure: Logged In" : "Secure: Locked"}
       />
 
-      {/* Renders Add Button ONLY if securely logged into Supabase */}
       {session && (
         <button onClick={() => { resetForm(); setIsModalOpen(true); }} style={{ position: 'absolute', top: '20px', left: '20px', zIndex: 100, background: '#13111C', color: '#FFFFFF', border: '1px solid #23283B', padding: '12px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontFamily: 'sans-serif', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
           ➕ Add New Log
@@ -355,7 +350,6 @@ export default function App() {
         </Source>
       </Map>
 
-      {/* Accordion Sidebar */}
       {selectedCountryCode && activeTrips.length > 0 && (
         <div style={{ position: 'absolute', top: 0, right: 0, width: '400px', height: '100vh', backgroundColor: '#13111C', borderLeft: '1px solid #23283B', boxShadow: '-10px 0 30px rgba(0,0,0,0.5)', color: '#E0E0E0', padding: '40px 30px', boxSizing: 'border-box', fontFamily: 'sans-serif', zIndex: 10, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
@@ -394,7 +388,6 @@ export default function App() {
                               </a>
                             )}
 
-                            {/* NEW: ADMIN MANAGEMENT CONSOLE */}
                             {session && (
                               <div style={{ display: 'flex', gap: '10px', marginTop: '16px', borderTop: '1px solid #23283B', paddingTop: '16px' }}>
                                 <button onClick={(e) => { e.stopPropagation(); openEditModal(trip); }} style={{ flex: 1, padding: '8px', borderRadius: '6px', background: 'transparent', color: '#6BCB77', border: '1px solid #6BCB77', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>✏️ Edit</button>
@@ -435,7 +428,6 @@ export default function App() {
       {isModalOpen && (
         <div style={{ position: 'absolute', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(5, 4, 8, 0.85)', zIndex: 200, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           <form onSubmit={handleAddTripSubmit} style={{ backgroundColor: '#13111C', border: '1px solid #23283B', borderRadius: '12px', width: '450px', padding: '40px', display: 'flex', flexDirection: 'column', gap: '16px', fontFamily: 'sans-serif', color: '#FFFFFF', boxShadow: '0 20px 50px rgba(0,0,0,0.8)', maxHeight: '90vh', overflowY: 'auto' }}>
-            {/* Dynamic Title */}
             <h2 style={{ margin: '0', color: '#F5C2E7' }}>{editingTripId ? 'Edit Adventure' : 'Log New Adventure'}</h2>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -489,7 +481,6 @@ export default function App() {
                 <label style={{ fontSize: '13px', color: '#A0AEC0' }}>Highlight Photos (Max 5 total)</label>
                 <input type="file" multiple accept="image/*" onChange={handleImageChange} style={{ fontSize: '12px', color: '#A0AEC0' }} />
                 
-                {/* EXISTING IMAGES FROM DB (For Edit Mode) */}
                 {existingImages.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
                     {existingImages.map((url, index) => (
@@ -501,7 +492,6 @@ export default function App() {
                   </div>
                 )}
 
-                {/* NEW IMAGES STAGED FOR UPLOAD */}
                 {formImages.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
                     {formImages.map((file, index) => (
